@@ -196,6 +196,32 @@ with tab_analysis:
             ci = (throughputs[0], throughputs[0], throughputs[0])
         st.pyplot(plot_throughput_bar_with_ci(throughputs, ci=ci))
 
+        st.subheader("📋 Resultados por réplica")
+        df = pd.DataFrame([
+            {
+                "Réplica": i + 1,
+                "Throughput (piezas/h)": round(r.throughput, 3),
+                "Flow time prom. (min)": round(
+                    sum(r.flow_times) / len(r.flow_times) if r.flow_times else 0.0, 3
+                ),
+                "WIP prom.": round(r.avg_wip, 3),
+                "% Bloqueo E1": round(r.pct_blocked_e1 * 100, 2),
+                "% Bloqueo E2": round(r.pct_blocked_e2 * 100, 2),
+                "% Hambre E2": round(r.pct_starved_e2 * 100, 2),
+                "% Hambre E3": round(r.pct_starved_e3 * 100, 2),
+                "Piezas completadas": r.pieces_completed,
+            }
+            for i, r in enumerate(results)
+        ])
+        st.dataframe(df, use_container_width=True, hide_index=True)
+        csv_bytes = df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            "⬇ Descargar CSV",
+            data=csv_bytes,
+            file_name=f"resultados_K1{k1}_K2{k2}_seed{seed}.csv",
+            mime="text/csv",
+        )
+
 with tab_compare:
     st.write("Comparación a poblar en Task 5.6")
 
