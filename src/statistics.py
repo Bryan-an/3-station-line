@@ -54,3 +54,25 @@ def t_test_greater(
     # P(T_{n-1} > t)
     p = 1.0 - scipy_stats.t.cdf(t, df=n - 1)
     return t, p
+
+
+def chi_square_uniformity(
+    uniforms: list[float], k: int = 10, alpha: float = 0.05
+) -> tuple[float, float, bool]:
+    """Chi-square test for U ~ Uniform(0, 1).
+
+    Returns (chi2_stat, critical_value, passes_at_alpha).
+    """
+    if not uniforms:
+        raise ValueError("uniforms must be non-empty")
+    n = len(uniforms)
+    expected = n / k
+    observed = [0] * k
+    for u in uniforms:
+        # Clamp to [0, k-1] in case u==1.0 sneaks in
+        bin_idx = min(int(u * k), k - 1)
+        observed[bin_idx] += 1
+    chi2 = sum((o - expected) ** 2 / expected for o in observed)
+    critical = scipy_stats.chi2.ppf(1.0 - alpha, df=k - 1)
+    passes = chi2 < critical
+    return chi2, critical, passes

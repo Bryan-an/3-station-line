@@ -6,6 +6,7 @@ import pytest
 from src.statistics import (
     confidence_interval,
     t_test_greater,
+    chi_square_uniformity,
 )
 
 
@@ -52,3 +53,22 @@ def test_t_test_does_not_reject_when_at_threshold():
 def test_t_test_p_value_close_to_one_when_clearly_less():
     t, p = t_test_greater([5.0] * 10, threshold=12.0)
     assert p > 0.99
+
+
+from src.rng import LCG
+
+
+def test_chi_square_passes_for_good_lcg():
+    rng = LCG(state=42)
+    uniforms = [rng.next_uniform() for _ in range(10_000)]
+    chi2, crit, passes = chi_square_uniformity(uniforms, k=10)
+    assert passes
+    assert chi2 < crit
+
+
+def test_chi_square_fails_for_obviously_non_uniform_data():
+    """All values in [0, 0.1) → massive deviation, should fail."""
+    uniforms = [0.05] * 1_000
+    chi2, crit, passes = chi_square_uniformity(uniforms, k=10)
+    assert not passes
+    assert chi2 > crit
