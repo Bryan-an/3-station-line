@@ -311,5 +311,45 @@ with tab_compare:
             label_b=f"B (K1={kb1_}, K2={kb2_})",
         ))
 
+@st.cache_data(show_spinner=False)
+def compute_heatmap(seed: int, duration: float, n_per_cell: int) -> dict[tuple[int, int], float]:
+    grid: dict[tuple[int, int], float] = {}
+    for k1_ in range(1, 11):
+        for k2_ in range(1, 11):
+            tps = []
+            for i in range(n_per_cell):
+                cfg = SimulationConfig(
+                    k1=k1_, k2=k2_, duration=duration, seed=seed + i * SEED_PRIME
+                )
+                tps.append(run_simulation(cfg).throughput)
+            grid[(k1_, k2_)] = sum(tps) / n_per_cell
+    return grid
+
+
 with tab_heatmap:
-    st.write("Heatmap a poblar en Task 5.7")
+    st.subheader("🔥 Throughput promedio por (K1, K2)")
+    st.warning(
+        "Esto corre 100 combinaciones × N réplicas × duración. "
+        "Con N=3 y duración=960 min tarda ~2-4 min en Streamlit Cloud."
+    )
+
+    n_per_cell = st.slider("Réplicas por celda", 1, 5, 3, key="hm_n")
+    hm_duration = st.number_input(
+        "Duración por simulación (min)", min_value=300, max_value=2000, value=960, step=60, key="hm_dur"
+    )
+    hm_seed = st.number_input(
+        "Semilla base", min_value=0, max_value=2**31 - 1, value=42, key="hm_seed"
+    )
+    run_heatmap = st.button("▶ Calcular heatmap", key="run_heatmap")
+
+    if run_heatmap:
+        with st.spinner("Calculando 100 combinaciones..."):
+            grid = compute_heatmap(hm_seed, float(hm_duration), n_per_cell)
+        st.session_state.heatmap_grid = grid
+
+    if "heatmap_grid" in st.session_state:
+        grid = st.session_state.heatmap_grid
+        st.pyplot(plot_heatmap(grid, metric_name="Throughput (piezas/h)"))
+        best = max(grid.items(), key=lambda kv: kv[1])
+        (k1_best, k2_best), val_best = best
+        st.success(f"🏆 Óptimo: K1={k1_best}, K2={k2_best} → {val_best:.2f} piezas/h")
