@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-import io
-
 import pandas as pd
 import streamlit as st
 
@@ -173,8 +171,6 @@ with tab_analysis:
     else:
         results = st.session_state.results
         throughputs, flow_means, wips = render_metrics_and_hypothesis(results)
-        st.session_state._cached_throughputs = throughputs
-        st.session_state._cached_flow_means = flow_means
 
         # --- Plots ---
         st.subheader("📈 Evolución del WIP")
@@ -215,10 +211,11 @@ with tab_analysis:
         ])
         st.dataframe(df, use_container_width=True, hide_index=True)
         csv_bytes = df.to_csv(index=False).encode("utf-8")
+        cfg_used = st.session_state.config_used
         st.download_button(
             "⬇ Descargar CSV",
             data=csv_bytes,
-            file_name=f"resultados_K1{k1}_K2{k2}_seed{seed}.csv",
+            file_name=f"resultados_K1{cfg_used['k1']}_K2{cfg_used['k2']}_seed{cfg_used['seed']}.csv",
             mime="text/csv",
         )
 
@@ -330,7 +327,7 @@ with tab_heatmap:
     st.subheader("🔥 Throughput promedio por (K1, K2)")
     st.warning(
         "Esto corre 100 combinaciones × N réplicas × duración. "
-        "Con N=3 y duración=960 min tarda ~2-4 min en Streamlit Cloud."
+        "Con N=3 y duración=960 min tarda ~5-30 segundos (depende del CPU). El resultado se cachea."
     )
 
     n_per_cell = st.slider("Réplicas por celda", 1, 5, 3, key="hm_n")
