@@ -183,7 +183,13 @@ def run_simulation(config: SimulationConfig) -> SimulationResult:
         elif event_type == FIN_E2:
             if len(b2) < config.k2:
                 b2.append(e2_piece)
-                # Cascade: E1 was blocked, B1 now has space
+                # Pre-pop B1 for E2 (without starting E2 yet) — this frees a slot
+                # before any E1-unblock push, preventing transient B1 overflow.
+                if len(b1) > 0:
+                    next_for_e2 = b1.popleft()
+                else:
+                    next_for_e2 = None
+                # E1 unblock cascade: B1 now has space (was full only if E1 was BLOCKED)
                 if e1_state == "BLOCKED":
                     b1.append(e1_piece)
                     e1_piece = next_piece_id
@@ -193,9 +199,9 @@ def run_simulation(config: SimulationConfig) -> SimulationResult:
                     push_event(t + d_e1, FIN_E1, e1_piece)
                     e1_state = "BUSY"
                     snapshot(FIN_E2, piece, u_e1, d_e1, "E1 unblocked")
-                # E2 tries to take next
-                if len(b1) > 0:
-                    e2_piece = b1.popleft()
+                # Now actually start E2 with its next piece (if any)
+                if next_for_e2 is not None:
+                    e2_piece = next_for_e2
                     u_e2, d_e2 = sample_duration()
                     push_event(t + d_e2, FIN_E2, e2_piece)
                     e2_state = "BUSY"
@@ -219,38 +225,50 @@ def run_simulation(config: SimulationConfig) -> SimulationResult:
             pieces_completed += 1
             completed_piece = e3_piece
             e3_piece = None
+            e3_state = "FREE"
             # Cascade: E2 was blocked
             if e2_state == "BLOCKED":
+                # E2 blocked because b2 was full. Pre-pop b2 (for E3 to take), then push e2_piece.
+                next_for_e3 = b2.popleft()
                 b2.append(e2_piece)
                 if len(b1) > 0:
-                    e2_piece = b1.popleft()
-                    u_e2, d_e2 = sample_duration()
-                    push_event(t + d_e2, FIN_E2, e2_piece)
-                    e2_state = "BUSY"
-                    snapshot(FIN_E3, completed_piece, u_e2, d_e2, "E2 unblocked, took from B1")
+                    next_for_e2 = b1.popleft()
+                    u_e2, d_e2 = sample_duration()        # u_e2 FIRST (preserves original order)
+                    # E1 cascade
                     if e1_state == "BLOCKED":
                         b1.append(e1_piece)
                         e1_piece = next_piece_id
                         piece_entry[next_piece_id] = t
                         next_piece_id += 1
-                        u_e1, d_e1 = sample_duration()
+                        u_e1, d_e1 = sample_duration()    # u_e1 SECOND
                         push_event(t + d_e1, FIN_E1, e1_piece)
                         e1_state = "BUSY"
                         snapshot(FIN_E3, completed_piece, u_e1, d_e1, "E1 unblocked (cascade)")
+                    # Now apply E2 with sampled u_e2
+                    e2_piece = next_for_e2
+                    push_event(t + d_e2, FIN_E2, e2_piece)
+                    e2_state = "BUSY"
+                    snapshot(FIN_E3, completed_piece, u_e2, d_e2, "E2 unblocked, took from B1")
                 else:
                     e2_state = "FREE"
                     e2_piece = None
                     snapshot(FIN_E3, completed_piece, None, None, "E2 unblocked but B1 empty")
-            # E3 tries to take next
-            if len(b2) > 0:
-                e3_piece = b2.popleft()
+                # Apply E3 with the pre-popped piece
+                e3_piece = next_for_e3
                 e3_state = "BUSY"
-                u_e3, d_e3 = sample_duration()
+                u_e3, d_e3 = sample_duration()             # u_e3 THIRD (preserves original order)
                 push_event(t + d_e3, FIN_E3, e3_piece)
                 snapshot(FIN_E3, completed_piece, u_e3, d_e3, "E3 took next from B2")
             else:
-                e3_state = "FREE"
-                snapshot(FIN_E3, completed_piece, None, None, "E3 FREE (starved)")
+                # E2 was not blocked. E3 just checks b2.
+                if len(b2) > 0:
+                    e3_piece = b2.popleft()
+                    e3_state = "BUSY"
+                    u_e3, d_e3 = sample_duration()
+                    push_event(t + d_e3, FIN_E3, e3_piece)
+                    snapshot(FIN_E3, completed_piece, u_e3, d_e3, "E3 took next from B2")
+                else:
+                    snapshot(FIN_E3, completed_piece, None, None, "E3 FREE (starved)")
 
         wip_trace.append((t, len(b1) + len(b2)))
 
