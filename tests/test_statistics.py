@@ -1,9 +1,11 @@
+import math
 import random
 
 import pytest
 
 from src.statistics import (
     confidence_interval,
+    t_test_greater,
 )
 
 
@@ -34,3 +36,19 @@ def test_ci_requires_at_least_two_for_meaningful_interval():
     assert mean == 5.0
     assert lo == 5.0
     assert hi == 5.0
+
+
+def test_t_test_rejects_when_clearly_greater():
+    t, p = t_test_greater([15.0] * 10, threshold=12.0)
+    assert p < 0.001
+
+
+def test_t_test_does_not_reject_when_at_threshold():
+    """Constant values at threshold → t = 0, p ≈ 0.5."""
+    t, p = t_test_greater([12.0] * 10, threshold=12.0)
+    assert p == pytest.approx(0.5, abs=0.01) or math.isnan(t)
+
+
+def test_t_test_p_value_close_to_one_when_clearly_less():
+    t, p = t_test_greater([5.0] * 10, threshold=12.0)
+    assert p > 0.99
