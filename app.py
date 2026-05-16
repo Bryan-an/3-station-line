@@ -176,6 +176,26 @@ with tab_analysis:
         st.session_state._cached_throughputs = throughputs
         st.session_state._cached_flow_means = flow_means
 
+        # --- Plots ---
+        st.subheader("📈 Evolución del WIP")
+        rep_idx = st.selectbox(
+            "Réplica a visualizar",
+            options=list(range(1, len(results) + 1)),
+            index=0,
+            key="wip_rep_idx",
+        )
+        st.pyplot(plot_wip_evolution(results[rep_idx - 1].wip_trace))
+
+        st.subheader("📊 Histograma de tiempos de flujo")
+        st.pyplot(plot_flow_time_histogram(results[rep_idx - 1].flow_times))
+
+        st.subheader("📐 Throughput por réplica")
+        if len(throughputs) >= 2:
+            ci = confidence_interval(throughputs)
+        else:
+            ci = (throughputs[0], throughputs[0], throughputs[0])
+        st.pyplot(plot_throughput_bar_with_ci(throughputs, ci=ci))
+
 with tab_compare:
     st.write("Comparación a poblar en Task 5.6")
 
