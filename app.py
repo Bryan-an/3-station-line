@@ -258,7 +258,58 @@ with tab_analysis:
             st.pyplot(fig_u)
 
 with tab_compare:
-    st.write("Comparación a poblar en Task 5.6")
+    st.subheader("🔀 Comparar dos configuraciones (K1, K2)")
+
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.markdown("**Configuración A**")
+        ka1 = st.slider("K1 (A)", 1, 10, 2, key="ka1")
+        ka2 = st.slider("K2 (A)", 1, 10, 2, key="ka2")
+    with col_b:
+        st.markdown("**Configuración B**")
+        kb1 = st.slider("K1 (B)", 1, 10, 5, key="kb1")
+        kb2 = st.slider("K2 (B)", 1, 10, 5, key="kb2")
+
+    n_cmp = st.slider("Réplicas por configuración", 1, 20, 5, key="n_cmp")
+    cmp_seed = st.number_input(
+        "Semilla base", min_value=0, max_value=2**31 - 1, value=42, key="cmp_seed"
+    )
+    run_compare = st.button("▶ Comparar", key="run_compare")
+
+    if run_compare:
+        with st.spinner("Simulando A..."):
+            res_a = run_replications(ka1, ka2, 960.0, n_cmp, cmp_seed)
+        with st.spinner("Simulando B..."):
+            res_b = run_replications(kb1, kb2, 960.0, n_cmp, cmp_seed)
+        st.session_state.cmp = (res_a, res_b, ka1, ka2, kb1, kb2)
+
+    if "cmp" in st.session_state:
+        res_a, res_b, ka1_, ka2_, kb1_, kb2_ = st.session_state.cmp
+        tp_a = [r.throughput for r in res_a]
+        tp_b = [r.throughput for r in res_b]
+        wip_a = sum(r.avg_wip for r in res_a) / len(res_a)
+        wip_b = sum(r.avg_wip for r in res_b) / len(res_b)
+        flow_a = [sum(r.flow_times) / len(r.flow_times) if r.flow_times else 0.0 for r in res_a]
+        flow_b = [sum(r.flow_times) / len(r.flow_times) if r.flow_times else 0.0 for r in res_b]
+
+        ca, cb = st.columns(2)
+        with ca:
+            st.markdown(f"**A: K1={ka1_}, K2={ka2_}**")
+            st.metric("Throughput", f"{sum(tp_a)/len(tp_a):.2f}")
+            st.metric("Flow time", f"{sum(flow_a)/len(flow_a):.2f} min")
+            st.metric("WIP", f"{wip_a:.2f}")
+        with cb:
+            st.markdown(f"**B: K1={kb1_}, K2={kb2_}**")
+            st.metric("Throughput", f"{sum(tp_b)/len(tp_b):.2f}")
+            st.metric("Flow time", f"{sum(flow_b)/len(flow_b):.2f} min")
+            st.metric("WIP", f"{wip_b:.2f}")
+
+        st.subheader("Evolución del WIP — primera réplica de cada config")
+        st.pyplot(plot_comparison_wip(
+            res_a[0].wip_trace, res_b[0].wip_trace,
+            label_a=f"A (K1={ka1_}, K2={ka2_})",
+            label_b=f"B (K1={kb1_}, K2={kb2_})",
+        ))
 
 with tab_heatmap:
     st.write("Heatmap a poblar en Task 5.7")
