@@ -76,3 +76,23 @@ def chi_square_uniformity(
     critical = scipy_stats.chi2.ppf(1.0 - alpha, df=k - 1)
     passes = chi2 < critical
     return chi2, critical, passes
+
+
+def ks_uniformity(
+    uniforms: list[float], alpha: float = 0.05
+) -> tuple[float, float, bool]:
+    """One-sample Kolmogorov-Smirnov test against Uniform(0, 1).
+
+    Returns (D_statistic, critical_value, passes_at_alpha).
+    """
+    if not uniforms:
+        raise ValueError("uniforms must be non-empty")
+    n = len(uniforms)
+    sorted_u = sorted(uniforms)
+    d_plus = max((i + 1) / n - u for i, u in enumerate(sorted_u))
+    d_minus = max(u - i / n for i, u in enumerate(sorted_u))
+    d = max(d_plus, d_minus)
+    # Asymptotic critical value (Kolmogorov distribution)
+    critical = scipy_stats.kstwobign.ppf(1.0 - alpha) / math.sqrt(n)
+    passes = d < critical
+    return d, critical, passes

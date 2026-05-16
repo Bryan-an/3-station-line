@@ -7,6 +7,7 @@ from src.statistics import (
     confidence_interval,
     t_test_greater,
     chi_square_uniformity,
+    ks_uniformity,
 )
 
 
@@ -72,3 +73,17 @@ def test_chi_square_fails_for_obviously_non_uniform_data():
     chi2, crit, passes = chi_square_uniformity(uniforms, k=10)
     assert not passes
     assert chi2 > crit
+
+
+def test_ks_passes_for_good_lcg():
+    rng = LCG(state=42)
+    uniforms = [rng.next_uniform() for _ in range(5_000)]
+    d, crit, passes = ks_uniformity(uniforms)
+    assert passes
+    assert d < crit
+
+
+def test_ks_fails_for_clustered_data():
+    uniforms = [0.5] * 100
+    d, crit, passes = ks_uniformity(uniforms)
+    assert not passes
