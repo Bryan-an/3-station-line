@@ -7,7 +7,7 @@ con buffers finitos, tiempos exponenciales, bloqueo y hambre.
 
 ## App desplegada
 
-→ **https://3-station-line.streamlit.app**
+→ **https://3-station-line-c2artr8fgahdqj9weyqssd.streamlit.app/**
 
 > Si la app duerme tras inactividad, el primer load toma ~30-60s.
 
