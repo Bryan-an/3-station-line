@@ -222,6 +222,41 @@ with tab_analysis:
             mime="text/csv",
         )
 
+        with st.expander("🎲 Validación del GLC"):
+            n_u = 1_000
+            val_seed = st.session_state.config_used["seed"]
+            rng_val = LCG(state=val_seed)
+            uniforms = [rng_val.next_uniform() for _ in range(n_u)]
+            rng_exp = LCG(state=val_seed)
+            ts = [exponential(rng_exp, 0.25) for _ in range(n_u)]
+
+            chi2, crit_chi, pass_chi = chi_square_uniformity(uniforms, k=10)
+            d, crit_ks, pass_ks = ks_uniformity(uniforms)
+            mean_t = sum(ts) / n_u
+
+            colu1, colu2, colu3 = st.columns(3)
+            colu1.metric("χ²", f"{chi2:.2f}", delta=f"crítico {crit_chi:.2f}",
+                         delta_color="normal" if pass_chi else "inverse")
+            colu2.metric("K-S D", f"{d:.4f}", delta=f"crítico {crit_ks:.4f}",
+                         delta_color="normal" if pass_ks else "inverse")
+            colu3.metric("Media T exp.", f"{mean_t:.3f} min", delta="esperado 4.00", delta_color="off")
+
+            st.write("Primeros 30 valores Uᵢ generados:")
+            st.dataframe(
+                pd.DataFrame({"i": range(1, 31), "Uᵢ": uniforms[:30]}),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+            st.write("Histograma de 1000 Uᵢ (debe verse plano):")
+            import matplotlib.pyplot as plt
+            fig_u, ax_u = plt.subplots(figsize=(9, 2.5))
+            ax_u.hist(uniforms, bins=20, edgecolor="black", alpha=0.7)
+            ax_u.set_xlabel("U")
+            ax_u.set_ylabel("Frecuencia")
+            fig_u.tight_layout()
+            st.pyplot(fig_u)
+
 with tab_compare:
     st.write("Comparación a poblar en Task 5.6")
 
