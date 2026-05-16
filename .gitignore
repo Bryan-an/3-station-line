@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Generated artifacts
+*.xlsx
+*.csv
+!docs/**/*.csv
+!docs/**/*.xlsx
+
+# Streamlit
+.streamlit/secrets.toml
