@@ -115,11 +115,66 @@ if run_button:
                 k1=k1, k2=k2, duration=duration, n_replicas=n_replicas, seed=seed
             )
 
+def render_metrics_and_hypothesis(results):
+    throughputs = [r.throughput for r in results]
+    flow_means = [
+        sum(r.flow_times) / len(r.flow_times) if r.flow_times else 0.0
+        for r in results
+    ]
+    wips = [r.avg_wip for r in results]
+    blocked_e1 = [r.pct_blocked_e1 for r in results]
+    blocked_e2 = [r.pct_blocked_e2 for r in results]
+    starved_e2 = [r.pct_starved_e2 for r in results]
+    starved_e3 = [r.pct_starved_e3 for r in results]
+
+    n = len(throughputs)
+    if n >= 2:
+        tp_mean, tp_lo, tp_hi = confidence_interval(throughputs)
+        ft_mean, ft_lo, ft_hi = confidence_interval(flow_means)
+    else:
+        tp_mean, tp_lo, tp_hi = throughputs[0], throughputs[0], throughputs[0]
+        ft_mean, ft_lo, ft_hi = flow_means[0], flow_means[0], flow_means[0]
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric(
+        "Throughput (piezas/h)",
+        f"{tp_mean:.2f}",
+        delta=f"IC95 [{tp_lo:.2f}, {tp_hi:.2f}]",
+        delta_color="off",
+    )
+    c2.metric(
+        "Tiempo de flujo (min)",
+        f"{ft_mean:.2f}",
+        delta=f"IC95 [{ft_lo:.2f}, {ft_hi:.2f}]",
+        delta_color="off",
+    )
+    c3.metric("WIP promedio", f"{sum(wips)/n:.2f}")
+    total_block_starve = (
+        sum(blocked_e1) + sum(blocked_e2) + sum(starved_e2) + sum(starved_e3)
+    ) / n
+    c4.metric("Bloqueo + Hambre", f"{total_block_starve * 100:.1f}%")
+
+    st.subheader("Prueba de hipótesis  ·  H₁: μ throughput > 12 piezas/h")
+    if n >= 2:
+        t_stat, p_val = t_test_greater(throughputs, threshold=12.0)
+        decision = "🟢 Rechazo H₀" if p_val < 0.05 else "🔴 No rechazo H₀"
+        st.write(
+            f"t = **{t_stat:.3f}**  ·  p-value = **{p_val:.4g}**  ·  {decision}  (α = 0.05)"
+        )
+    else:
+        st.info("Se necesitan ≥ 2 réplicas para la prueba t.")
+
+    return throughputs, flow_means, wips
+
+
 with tab_analysis:
     if st.session_state.results is None:
         st.info("Configura los parámetros y pulsa **Simular** en la barra lateral.")
     else:
-        st.write("Análisis a poblar en Task 5.2-5.5")
+        results = st.session_state.results
+        throughputs, flow_means, wips = render_metrics_and_hypothesis(results)
+        st.session_state._cached_throughputs = throughputs
+        st.session_state._cached_flow_means = flow_means
 
 with tab_compare:
     st.write("Comparación a poblar en Task 5.6")
