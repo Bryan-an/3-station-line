@@ -68,3 +68,42 @@ def test_state_fractions_sum_to_at_most_one():
         <= 1.0 + eps
     )
     assert result.busy_e3 + result.pct_starved_e3 <= 1.0 + eps
+
+
+import statistics as stdstats
+
+
+def test_reproducibility_bit_for_bit():
+    cfg = SimulationConfig(k1=3, k2=3, seed=42, duration=500.0)
+    r1 = run_simulation(cfg)
+    r2 = run_simulation(cfg)
+    assert r1.throughput == r2.throughput
+    assert r1.flow_times == r2.flow_times
+    assert r1.pieces_completed == r2.pieces_completed
+
+
+def test_throughput_below_theoretical_max():
+    """Theoretical max = 60/4 = 15 pieces/h; allow small finite-sample margin."""
+    for seed in [1, 42, 999]:
+        result = run_simulation(SimulationConfig(k1=10, k2=10, seed=seed, duration=960.0))
+        assert result.throughput < 15.5
+
+
+def test_larger_buffers_give_higher_average_throughput():
+    """K=10,10 should outperform K=1,1 averaged across 20 replications."""
+    n = 20
+    tp_small = [
+        run_simulation(SimulationConfig(k1=1, k2=1, seed=s, duration=960.0)).throughput
+        for s in range(1, n + 1)
+    ]
+    tp_large = [
+        run_simulation(SimulationConfig(k1=10, k2=10, seed=s, duration=960.0)).throughput
+        for s in range(1, n + 1)
+    ]
+    assert stdstats.mean(tp_large) > stdstats.mean(tp_small)
+
+
+def test_degenerate_k1_k2_equal_one_does_not_crash():
+    result = run_simulation(SimulationConfig(k1=1, k2=1, seed=42, duration=500.0))
+    assert result.throughput > 0.0
+    assert result.pct_blocked_e1 > 0.0   # blocking expected with K=1
